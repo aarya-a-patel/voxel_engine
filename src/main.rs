@@ -4,7 +4,7 @@ use noise::{NoiseFn, Perlin};
 const WIDTH: usize = 640;
 const HEIGHT: usize = 360;
 
-fn get_voxel(x: f32, y: f32, z: f32, mut perlin: &Perlin) -> (bool, u32) {
+fn get_voxel(x: f32, y: f32, z: f32, perlin: &Perlin) -> (bool, u32) {
     let x = x / 2f32 * std::f32::consts::PI;
     let y = y / 2f32 * std::f32::consts::PI;
 
@@ -16,12 +16,12 @@ fn get_voxel(x: f32, y: f32, z: f32, mut perlin: &Perlin) -> (bool, u32) {
     (false, 0)
 }
 
-fn cast_ray(angle: (f32, f32), x: f32, y: f32, z: f32, mut perlin: &Perlin) -> u32 {
-    let ray_dir: Vec<f32> = vec![angle.0.sin() * angle.1.cos(), angle.0.sin() * angle.1.sin(), angle.0.cos()];
-    let delta_dist: Vec<f32> = ray_dir.iter().map(|i| (1f32 / i).abs()).collect();
-    let step: Vec<i32> = ray_dir.iter().map(|i| (i / i.abs()) as i32).collect();
-    let mut map: Vec<i32> = vec![x, y, z].iter().map(|i| i.floor() as i32).collect();
-    let mut side_dist: Vec<f32> = vec![0.0; 3];
+fn cast_ray(angle: (f32, f32), x: f32, y: f32, z: f32, perlin: &Perlin) -> u32 {
+    let ray_dir: [f32; 3] = [angle.0.sin() * angle.1.cos(), angle.0.sin() * angle.1.sin(), angle.0.cos()];
+    let delta_dist: [f32; 3] = ray_dir.map(|i| (1f32 / i).abs());
+    let step: [i32; 3] = ray_dir.map(|i| (i / i.abs()) as i32);
+    let mut map: [i32; 3] = [x, y, z].map(|i| i.floor() as i32);
+    let mut side_dist: [f32; 3] = [0.0; 3];
 
     loop {
         let mut min_index = 0;
@@ -44,7 +44,7 @@ fn cast_ray(angle: (f32, f32), x: f32, y: f32, z: f32, mut perlin: &Perlin) -> u
     }
 }
 
-fn gen_buffer(width: usize, height: usize, camera_angle: f32, mut perlin: &Perlin) -> Vec<u32> {
+fn gen_buffer(width: usize, height: usize, camera_angle: f32, perlin: &Perlin) -> Vec<u32> {
     let mut buffer = vec![0x00FFAA00; width * height];
     for y in 0..height {
         for x in 0..width {
@@ -75,12 +75,12 @@ fn main() {
         }
     };
 
-    let mut perlin = Perlin::new();
+    let perlin = Perlin::new();
     let mut camera_angle: f32 = 0.0;
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let (width, height) = window.get_size();
-        let buffer: Vec<u32> = gen_buffer(width / 4, height / 4, camera_angle, &mut perlin);
+        let buffer: Vec<u32> = gen_buffer(width / 4, height / 4, camera_angle, &perlin);
         camera_angle += 0.05;
 
         window
