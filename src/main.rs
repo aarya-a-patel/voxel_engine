@@ -4,11 +4,12 @@ const WIDTH: usize = 640;
 const HEIGHT: usize = 360;
 
 fn get_voxel(x: f32, y: f32, z: f32) -> (bool, u32) {
-    let x = x / 10f32 * std::f32::consts::PI;
-    let y = y / 10f32 * std::f32::consts::PI;
+    let x = x / 2f32 * std::f32::consts::PI;
+    let y = y / 2f32 * std::f32::consts::PI;
 
     if (x.cos() + y.sin()).floor() == z {
-        return (true, 0x00FFAA00);
+        return (true, (z.abs() as u32) * 0x00440000 + (x.abs() as u32) * 0x00000800
+                + (y.abs() as u32) * 0x00000008);
     }
 
     (false, 0)
@@ -28,7 +29,7 @@ fn cast_ray(angle: (f32, f32), x: f32, y: f32, z: f32) -> u32 {
                 min_index = k;
             }
 
-            if v > &10.0 {
+            if v > &30.0 {
                 break 'cast_loop 0;
             }
         }
@@ -41,14 +42,14 @@ fn cast_ray(angle: (f32, f32), x: f32, y: f32, z: f32) -> u32 {
     }
 }
 
-fn gen_buffer(width: usize, height: usize) -> Vec<u32> {
+fn gen_buffer(width: usize, height: usize, camera_angle: f32) -> Vec<u32> {
     let mut buffer = vec![0x00FFAA00; width * height];
     for y in 0..height {
         for x in 0..width {
             buffer[y * width + x] = cast_ray((
-                    std::f32::consts::PI * (1.0 / 4.0 + (y as f32 / height as f32) / 2.0), 
-                    std::f32::consts::PI * (1.0 / 4.0 + (x as f32 / width as f32) / 2.0)
-                    ), 0.0, 0.0, 3.0);
+                    std::f32::consts::PI * (1.0 / 3.0 + (y as f32 / height as f32) / 2.0), 
+                    camera_angle + std::f32::consts::PI * (1.0 / 4.0 + (x as f32 / width as f32) / 2.0)
+                    ), camera_angle.cos() * 5.0, camera_angle.sin() * 5.0, 5.0);
         }
     }
     buffer
@@ -57,9 +58,10 @@ fn gen_buffer(width: usize, height: usize) -> Vec<u32> {
 fn main() {
     let mut window = match Window::new(
         "Voxel Render",
-        WIDTH,
-        HEIGHT,
+        WIDTH / 4,
+        HEIGHT / 4,
         WindowOptions {
+            scale: Scale::X4,
             resize: true,
             ..WindowOptions::default()
         },
@@ -71,12 +73,15 @@ fn main() {
         }
     };
 
+    let mut camera_angle: f32 = 0.0;
+
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let (width, height) = window.get_size();
-        let buffer: Vec<u32> = gen_buffer(width, height); 
+        let buffer: Vec<u32> = gen_buffer(width / 4, height / 4, camera_angle);
+        camera_angle += 0.01;
 
         window
-            .update_with_buffer(&buffer, width, height)
+            .update_with_buffer(&buffer, width / 4, height / 4)
             .unwrap();
     }
 }
