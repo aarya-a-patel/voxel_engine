@@ -5,9 +5,6 @@ const WIDTH: usize = 640;
 const HEIGHT: usize = 360;
 
 fn get_voxel(x: f32, y: f32, z: f32, perlin: &Perlin) -> (bool, u32) {
-    let x = x / 2f32 * std::f32::consts::PI;
-    let y = y / 2f32 * std::f32::consts::PI;
-
     if (perlin.get([x as f64 / 10.0, y as f64 / 10.0]) *  10.0).floor() >= z.floor() as f64 {
         return (true, (z.abs() as u32) * 0x00040000 + (x.abs() as u32) * 0x00000400
                 + (y.abs() as u32) * 0x00000004);
