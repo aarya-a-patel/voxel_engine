@@ -7,9 +7,9 @@ fn get_voxel(x: f32, y: f32, z: f32) -> (bool, u32) {
     let x = x / 2f32 * std::f32::consts::PI;
     let y = y / 2f32 * std::f32::consts::PI;
 
-    if (x.cos() + y.sin()).floor() == z {
-        return (true, (z.abs() as u32) * 0x00440000 + (x.abs() as u32) * 0x00000800
-                + (y.abs() as u32) * 0x00000008);
+    if (x + y).abs().floor() == z.floor() {
+        return (true, (z.abs() as u32) * 0x00040000 + (x.abs() as u32) * 0x00000400
+                + (y.abs() as u32) * 0x00000004);
     }
 
     (false, 0)
@@ -19,19 +19,20 @@ fn cast_ray(angle: (f32, f32), x: f32, y: f32, z: f32) -> u32 {
     let ray_dir: Vec<f32> = vec![angle.0.sin() * angle.1.cos(), angle.0.sin() * angle.1.sin(), angle.0.cos()];
     let delta_dist: Vec<f32> = ray_dir.iter().map(|i| (1f32 / i).abs()).collect();
     let step: Vec<i32> = ray_dir.iter().map(|i| (i / i.abs()) as i32).collect();
-    let mut map: Vec<i32> = vec![x, y, z].iter().map(|i| *i as i32).collect();
+    let mut map: Vec<i32> = vec![x, y, z].iter().map(|i| i.floor() as i32).collect();
     let mut side_dist: Vec<f32> = vec![0.0; 3];
 
-    'cast_loop: loop {
+    loop {
         let mut min_index = 0;
+        let mut total_dist = 0.0;
         for (k, v) in side_dist.iter().enumerate() {
-            if delta_dist[k] != 0.0 && v < &side_dist[min_index] {
+            if v < &side_dist[min_index] {
                 min_index = k;
             }
-
-            if v > &30.0 {
-                break 'cast_loop 0;
-            }
+            total_dist += (map[k] * map[k]) as f32;
+        }
+        if total_dist > 2500.0 {
+            break 0;
         }
         side_dist[min_index] += delta_dist[min_index];
         map[min_index] += step[min_index];
@@ -49,7 +50,7 @@ fn gen_buffer(width: usize, height: usize, camera_angle: f32) -> Vec<u32> {
             buffer[y * width + x] = cast_ray((
                     std::f32::consts::PI * (1.0 / 3.0 + (y as f32 / height as f32) / 2.0), 
                     camera_angle + std::f32::consts::PI * (1.0 / 4.0 + (x as f32 / width as f32) / 2.0)
-                    ), camera_angle.cos() * 5.0, camera_angle.sin() * 5.0, 5.0);
+                    ), 0.0, 0.0, 25.0);
         }
     }
     buffer
