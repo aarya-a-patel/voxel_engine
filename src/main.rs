@@ -19,16 +19,31 @@ fn cast_ray(angle: (f32, f32), x: f32, y: f32, z: f32, space: &Vec<u32>) -> u32 
 
     loop {
         let mut min_index = 0;
-        let mut total_dist: f32 = 0.0;
-        for (k, v) in side_dist.iter().enumerate() {
-            if v < &side_dist[min_index] {
-                min_index = k;
-            }
-            total_dist += (map[k] * map[k]) as f32;
-        }
-        if total_dist > (SPACE_SIZE / 2 - 1).pow(2) as f32 {
+        let total_dist: i32 = map.iter().fold(0, |acc, i| acc + i * i);
+        
+        if total_dist > (SPACE_SIZE / 2 - 1).pow(2) as i32 {
             break 0;
         }
+
+        // for (k, v) in side_dist.iter().enumerate() {
+        //    if v < &side_dist[min_index] {
+        //        min_index = k;
+        //    }
+        //    total_dist += (map[k] * map[k]) as f32;
+        // }
+
+        if side_dist[0] < side_dist[1] {
+            if side_dist[0] > side_dist[2] {
+                min_index = 2;
+            }
+        } else {
+            if side_dist[1] < side_dist[2] {
+                min_index = 1;
+            } else {
+                min_index = 2;
+            }
+        }
+
         side_dist[min_index] += delta_dist[min_index];
         map[min_index] += step[min_index];
 
