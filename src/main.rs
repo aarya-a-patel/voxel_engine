@@ -12,8 +12,8 @@ fn make_coord(coord: [i32; 3]) -> usize {
 fn cast_ray(angle: (f32, f32), x: f32, y: f32, z: f32, space: &Vec<u32>) -> u32 {
     let ray_dir: [f32; 3] = [angle.0.sin() * angle.1.cos(), angle.0.sin() * angle.1.sin(), angle.0.cos()];
     let delta_dist: [f32; 3] = ray_dir.map(|i| (1f32 / i).abs());
-    let step: [i32; 3] = ray_dir.map(|i| (i / i.abs()) as i32);
-    let mut map: [i32; 3] = [x, y, z].map(|i| i.floor() as i32);
+    let step: [i32; 3] = ray_dir.map(|i| if i > 0.0 {1} else {-1});
+    let mut map: [i32; 3] = [x, y, z].map(|i| i as i32);
     let mut side_dist: [f32; 3] = [0.0; 3];
 
     loop {
@@ -23,13 +23,6 @@ fn cast_ray(angle: (f32, f32), x: f32, y: f32, z: f32, space: &Vec<u32>) -> u32 
         if total_dist > (((1 << SPACE_SIZE - 1) - 1) as i32).pow(2) {
             break 0;
         }
-
-        // for (k, v) in side_dist.iter().enumerate() {
-        //    if v < &side_dist[min_index] {
-        //        min_index = k;
-        //    }
-        //    total_dist += (map[k] * map[k]) as f32;
-        // }
 
         if side_dist[0] < side_dist[1] {
             if side_dist[0] > side_dist[2] {
@@ -65,7 +58,7 @@ fn gen_buffer(width: usize, height: usize, camera_angle: f32, space: &Vec<u32>) 
     for y in 0..height {
         for x in 0..width {
             buffer[y * width + x] = cast_ray((
-                    std::f32::consts::PI * (1.0 / 3.0 + (y as f32 / height as f32) / 2.0), 
+                    std::f32::consts::PI * (0.33333 + (y as f32 / height as f32) / 2.0), 
                     camera_angle + std::f32::consts::PI * (1.0 / 4.0 + (x as f32 / width as f32) / 2.0)
                     ), 0.0, 0.0, 10.0, space);
         }
