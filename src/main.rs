@@ -19,7 +19,7 @@ fn cast_ray(angle: (f32, f32), x: f32, y: f32, z: f32, space: &Vec<u32>) -> u32 
     loop {
         let mut min_index = 0;
         let total_dist: i32 = map.iter().fold(0, |acc, i| acc + i * i);
-        
+
         if total_dist > (((1 << SPACE_SIZE - 1) - 1) as i32).pow(2) {
             break 0;
         }
@@ -55,11 +55,15 @@ fn cast_ray(angle: (f32, f32), x: f32, y: f32, z: f32, space: &Vec<u32>) -> u32 
 
 fn gen_buffer(width: usize, height: usize, camera_angle: f32, space: &Vec<u32>) -> Vec<u32> {
     let mut buffer = vec![0x00FFAA00; width * height];
+    let start_phi: f32 = std::f32::consts::PI / 3.0;
+    let start_theta: f32 = std::f32::consts::PI / 4.0 + camera_angle;
+    let inv_twice_height: f32 = 1.0 / (height as f32 * 2.0);
+    let inv_twice_width: f32 = 1.0 / (width as f32 * 2.0);
     for y in 0..height {
         for x in 0..width {
             buffer[y * width + x] = cast_ray((
-                    std::f32::consts::PI * (0.33333 + (y as f32 / height as f32) / 2.0), 
-                    camera_angle + std::f32::consts::PI * (1.0 / 4.0 + (x as f32 / width as f32) / 2.0)
+                    std::f32::consts::PI * y as f32 * inv_twice_height + start_phi,
+                    std::f32::consts::PI * x as f32 * inv_twice_width + start_theta
                     ), 0.0, 0.0, 10.0, space);
         }
     }
