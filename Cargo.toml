@@ -8,3 +8,11 @@ edition = "2021"
 [dependencies]
 minifb = "0.20.0"
 noise = "0.7.0"
+
+[[bin]]
+name = "cpu"
+path = "src/cpu/main.rs"
+
+[[bin]]
+name = "gpu"
+path = "src/gpu/main.rs"
