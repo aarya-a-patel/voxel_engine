@@ -2,8 +2,8 @@ use minifb::{Key, MouseButton, MouseMode, Scale, Window, WindowOptions};
 use noise::{NoiseFn, Perlin};
 use std::time::{Instant, Duration};
 
-const WIDTH: usize = 640;
-const HEIGHT: usize = 360;
+const WIDTH: usize = 1280;
+const HEIGHT: usize = 640;
 const SPACE_SIZE: u32 = 6;
 const MAX_DIST: i32 = (((1 << SPACE_SIZE - 1) - 1) as i32).pow(2);
 
@@ -14,44 +14,37 @@ fn make_coord(coord: [i32; 3]) -> usize {
 fn cast_ray(angle: (f32, f32), x: f32, y: f32, z: f32, space: &Vec<u32>) -> u32 {
     let ray_dir: [f32; 3] = [angle.0.sin() * angle.1.cos(), angle.0.sin() * angle.1.sin(), angle.0.cos()];
     let delta_dist: [f32; 3] = ray_dir.map(|i| (1f32 / i).abs());
-    let step: [i32; 3] = ray_dir.map(|i| if i > 0.0 {1} else {-1});
+    let step: [i32; 3] = ray_dir.map(|i| (i > 0.0) as i32 - (i < 0.0) as i32);
     let mut map: [i32; 3] = [x, y, z].map(|i| i as i32);
     let mut side_dist: [f32; 3] = [0.0; 3];
+    let mut total_dist: i32;
 
     loop {
-        let total_dist: i32 = map.iter().fold(0, |acc, i| acc + i * i);
+        total_dist = map.iter().fold(0, |acc, i| acc + i * i);
 
         if total_dist > MAX_DIST {
             break 0;
         }
-        let coord = make_coord(map);
 
-//        if coord >= space.len() {
-//            break 0;
-//        }
+        let coord = make_coord(map);
 
         let voxel = space[coord];
         if voxel != 0 {
             break voxel; 
         }
 
-
-        let first_comp = side_dist[0] < side_dist[1];
-        let second_comp = side_dist[0] > side_dist[2];
-        let third_comp = side_dist[1] < side_dist[2];
-        let min_index = (2 * (first_comp && second_comp) as usize)
-            + (!first_comp as usize) * (1 + !third_comp as usize);
-        //        if side_dist[0] < side_dist[1] {
-        //            if side_dist[0] > side_dist[2] {
-        //                min_index = 2;
-        //            }
-        //        } else {
-        //            if side_dist[1] < side_dist[2] {
-        //                min_index = 1;
-        //            } else {
-        //                min_index = 2;
-        //            }
-        //        }
+        let mut min_index = 0;
+        if side_dist[0] < side_dist[1] {
+            if side_dist[0] > side_dist[2] {
+                min_index = 2;
+            }
+        } else {
+            if side_dist[1] < side_dist[2] {
+                min_index = 1;
+            } else {
+                min_index = 2;
+            }
+        }
 
         map[min_index] += step[min_index];
 
@@ -66,14 +59,6 @@ fn gen_buffer(width: usize, height: usize, camera_angle: f32, space: &Vec<u32>) 
     let inv_twice_height: f32 = 1.0 / (height as f32 * 2.0);
     let inv_twice_width: f32 = 1.0 / (width as f32 * 2.0);
     let start = Instant::now();
-    //    buffer.iter_mut().enumerate().for_each(|(i, v)| {
-    //        let x = i % width;
-    //        let y = (i - x) / width;
-    //        *v = cast_ray((
-    //                std::f32::consts::PI * y as f32 * inv_twice_height + start_phi,
-    //                std::f32::consts::PI * x as f32 * inv_twice_width + start_theta
-    //                ), 0.0, 0.0, 10.0, space)
-    //    });
     for y in 0..height {
         for x in 0..width {
             buffer[y * width + x] = cast_ray((
@@ -115,7 +100,7 @@ fn main() {
         WIDTH / 4,
         HEIGHT / 4,
         WindowOptions {
-            scale: Scale::X4,
+            scale: Scale::X2,
             resize: true,
             ..WindowOptions::default()
         },
@@ -131,11 +116,11 @@ fn main() {
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let (width, height) = window.get_size();
-        let buffer: Vec<u32> = gen_buffer(width / 4, height / 4, camera_angle, &space);
+        let buffer: Vec<u32> = gen_buffer(width / 2, height / 2, camera_angle, &space);
         camera_angle += 0.25;
 
         window
-            .update_with_buffer(&buffer, width / 4, height / 4)
+            .update_with_buffer(&buffer, width / 2, height /2)
             .unwrap();
     }
 }
