@@ -1,126 +1,220 @@
-use minifb::{Key, MouseButton, MouseMode, Scale, Window, WindowOptions};
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![allow(clippy::single_match)]
+#![allow(unused_imports)]
+#![allow(clippy::zero_ptr)]
+
+const WINDOW_TITLE: &str = "Triangle: Draw Arrays";
+const SPACE_SIZE: usize = 128;
+
+use beryllium::*;
+use core::{
+    convert::{TryFrom, TryInto},
+    mem::{size_of, size_of_val},
+};
+use std::str::SplitAsciiWhitespace;
+use ogl33::*;
 use noise::{NoiseFn, Perlin};
-use std::time::{Instant, Duration};
 
-const WIDTH: usize = 1280;
-const HEIGHT: usize = 640;
-const SPACE_SIZE: u32 = 6;
-const MAX_DIST: i32 = (((1 << SPACE_SIZE - 1) - 1) as i32).pow(2);
+type Vertex = [f32; 3];
 
-fn make_coord(coord: [i32; 3]) -> usize {
-    coord.map(|i| (i + (1u32 << (SPACE_SIZE - 1)) as i32 - 1) as u32).iter().fold(0, |acc, i| (acc << SPACE_SIZE) + i) as usize
-}
+const VERTICES: [Vertex; 6] =
+    [[-1.0, -1.0, 0.0], [1.0, -1.0, 0.0], [-1.0, 1.0, 0.0],
+        [1.0, 1.0, 0.0], [1.0, -1.0, 0.0], [-1.0, 1.0, 0.0]];
 
-fn cast_ray(angle: (f32, f32), x: f32, y: f32, z: f32, space: &Vec<u32>) -> u32 {
-    let ray_dir: [f32; 3] = [angle.0.sin() * angle.1.cos(), angle.0.sin() * angle.1.sin(), angle.0.cos()];
-    let delta_dist: [f32; 3] = ray_dir.map(|i| (1f32 / i).abs());
-    let step: [i32; 3] = ray_dir.map(|i| (i > 0.0) as i32 - (i < 0.0) as i32);
-    let mut map: [i32; 3] = [x, y, z].map(|i| i as i32);
-    let mut side_dist: [f32; 3] = [0.0; 3];
-    let mut total_dist: i32;
+const VERT_SHADER: &str = include_str!("triangle.vert");
 
-    loop {
-        total_dist = map.iter().fold(0, |acc, i| acc + i * i);
-
-        if total_dist > MAX_DIST {
-            break 0;
-        }
-
-        let coord = make_coord(map);
-
-        let voxel = space[coord];
-        if voxel != 0 {
-            break voxel; 
-        }
-
-        let mut min_index = 0;
-        if side_dist[0] < side_dist[1] {
-            if side_dist[0] > side_dist[2] {
-                min_index = 2;
-            }
-        } else {
-            if side_dist[1] < side_dist[2] {
-                min_index = 1;
-            } else {
-                min_index = 2;
-            }
-        }
-
-        map[min_index] += step[min_index];
-
-        side_dist[min_index] += delta_dist[min_index];
-    }
-}
-
-fn gen_buffer(width: usize, height: usize, camera_angle: f32, space: &Vec<u32>) -> Vec<u32> {
-    let mut buffer = vec![0x00FFAA00; width * height];
-    let start_phi: f32 = std::f32::consts::PI / 3.0;
-    let start_theta: f32 = std::f32::consts::PI / 4.0 + camera_angle;
-    let inv_twice_height: f32 = 1.0 / (height as f32 * 2.0);
-    let inv_twice_width: f32 = 1.0 / (width as f32 * 2.0);
-    let start = Instant::now();
-    for y in 0..height {
-        for x in 0..width {
-            buffer[y * width + x] = cast_ray((
-                    std::f32::consts::PI * y as f32 * inv_twice_height + start_phi, std::f32::consts::PI * x as f32 * inv_twice_width + start_theta
-                    ), 0.0, 0.0, 10.0, space);
-        }
-    }
-    let duration = start.elapsed();
-
-    println!("Time elapsed in expensive_function() is: {:?}", duration);
-    buffer
-}
-
-fn gen_space() -> Vec<u32> {
-    let perlin = Perlin::new();
-    let mut space: Vec<u32> = vec![0u32; 1usize << (SPACE_SIZE * 3)];
-    let half_space: i32 = (1i32 << (SPACE_SIZE - 1)) - 1;
-    for x in -half_space..half_space {
-        for y in -half_space..half_space {
-            let height = (perlin.get([x as f64 / 10.0, y as f64 / 10.0]) *  10.0).floor() as i32; 
-            for z in -half_space..height {
-                let mut color = 0x00000000;
-                for i in [x, y, z] {
-                    color = color << 8;
-                    color += (i + half_space) as u32 * 2;
-                }
-                space[make_coord([x, y, z])] = color;
-            }
-        }
-    }
-    space
-}
+const FRAG_SHADER: &str = include_str!("triangle.frag");
 
 fn main() {
     let space = gen_space();
 
-    let mut window = match Window::new(
-        "Voxel Render",
-        WIDTH / 4,
-        HEIGHT / 4,
-        WindowOptions {
-            scale: Scale::X2,
-            resize: true,
-            ..WindowOptions::default()
-        },
-        ) {
-        Ok(win) => win,
-        Err(err) => {
-            println!("Unable to create window {}", err);
-            return;
+    let sdl = SDL::init(InitFlags::Everything).expect("couldn't start SDL");
+    sdl.gl_set_attribute(SdlGlAttr::MajorVersion, 3).unwrap();
+    sdl.gl_set_attribute(SdlGlAttr::MinorVersion, 3).unwrap();
+    sdl.gl_set_attribute(SdlGlAttr::Profile, GlProfile::Core).unwrap();
+    #[cfg(target_os = "macos")]
+        {
+            sdl
+                .gl_set_attribute(SdlGlAttr::Flags, ContextFlag::ForwardCompatible)
+                .unwrap();
         }
-    };
 
-    let mut camera_angle: f32 = 0.0;
+    let win = sdl
+        .create_gl_window(
+            WINDOW_TITLE,
+            WindowPosition::Centered,
+            800,
+            600,
+            WindowFlags::Shown,
+        )
+        .expect("couldn't make a window and context");
+    win.set_swap_interval(SwapInterval::Vsync);
 
-    while window.is_open() && !window.is_key_down(Key::Escape) {
-        let (width, height) = window.get_size();
-        let buffer: Vec<u32> = gen_buffer(width / 2, height / 2, camera_angle, &space);
-        camera_angle += 0.25;
+    unsafe {
+        load_gl_with(|f_name| win.get_proc_address(f_name));
 
-        window
-            .update_with_buffer(&buffer, width / 2, height /2)
-            .unwrap();
+        glClearColor(0.2, 0.3, 0.3, 1.0);
+
+        glActiveTexture(GL_TEXTURE0);
+        let mut tex = 0;
+        glGenTextures(1, &mut tex);
+        glBindTexture(GL_TEXTURE_3D, tex);
+        glTexImage3D(
+            GL_TEXTURE_3D,
+            0,
+            GL_RGB as GLint,
+            SPACE_SIZE as GLsizei,
+            SPACE_SIZE as GLsizei,
+            SPACE_SIZE as GLsizei,
+            0,
+            GL_RGB,
+            GL_UNSIGNED_BYTE,
+            space.as_ptr() as *const _
+        );
+        glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE as GLint);
+        glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE as GLint);
+        glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST as GLint);
+        glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST as GLint);
+
+        let mut vao = 0;
+        glGenVertexArrays(1, &mut vao);
+        assert_ne!(vao, 0);
+        glBindVertexArray(vao);
+
+        let mut vbo = 0;
+        glGenBuffers(1, &mut vbo);
+        assert_ne!(vbo, 0);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(
+            GL_ARRAY_BUFFER,
+            size_of_val(&VERTICES) as isize,
+            VERTICES.as_ptr().cast(),
+            GL_STATIC_DRAW,
+        );
+
+        glVertexAttribPointer(
+            0,
+            3,
+            GL_FLOAT,
+            GL_FALSE,
+            size_of::<Vertex>() as GLsizei,
+            0 as *const _,
+        );
+        glEnableVertexAttribArray(0);
+
+        let vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+        assert_ne!(vertex_shader, 0);
+        glShaderSource(
+            vertex_shader,
+            1,
+            &(VERT_SHADER.as_bytes().as_ptr().cast()),
+            &(VERT_SHADER.len().try_into().unwrap()),
+        );
+        glCompileShader(vertex_shader);
+        let mut success = 0;
+        glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &mut success);
+        if success == 0 {
+            let mut v: Vec<u8> = Vec::with_capacity(1024);
+            let mut log_len = 0_i32;
+            glGetShaderInfoLog(
+                vertex_shader,
+                1024,
+                &mut log_len,
+                v.as_mut_ptr().cast(),
+            );
+            v.set_len(log_len.try_into().unwrap());
+            panic!("Vertex Compile Error: {}", String::from_utf8_lossy(&v));
+        }
+
+        let fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
+        assert_ne!(fragment_shader, 0);
+        glShaderSource(
+            fragment_shader,
+            1,
+            &(FRAG_SHADER.as_bytes().as_ptr().cast()),
+            &(FRAG_SHADER.len().try_into().unwrap()),
+        );
+        glCompileShader(fragment_shader);
+        let mut success = 0;
+        glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &mut success);
+        if success == 0 {
+            let mut v: Vec<u8> = Vec::with_capacity(1024);
+            let mut log_len = 0_i32;
+            glGetShaderInfoLog(
+                fragment_shader,
+                1024,
+                &mut log_len,
+                v.as_mut_ptr().cast(),
+            );
+            v.set_len(log_len.try_into().unwrap());
+            panic!("Fragment Compile Error: {}", String::from_utf8_lossy(&v));
+        }
+
+        let shader_program = glCreateProgram();
+        assert_ne!(shader_program, 0);
+        glAttachShader(shader_program, vertex_shader);
+        glAttachShader(shader_program, fragment_shader);
+        glLinkProgram(shader_program);
+        let mut success = 0;
+        glGetProgramiv(shader_program, GL_LINK_STATUS, &mut success);
+        if success == 0 {
+            let mut v: Vec<u8> = Vec::with_capacity(1024);
+            let mut log_len = 0_i32;
+            glGetProgramInfoLog(
+                shader_program,
+                1024,
+                &mut log_len,
+                v.as_mut_ptr().cast(),
+            );
+            v.set_len(log_len.try_into().unwrap());
+            panic!("Program Link Error: {}", String::from_utf8_lossy(&v));
+        }
+        glDeleteShader(vertex_shader);
+        glDeleteShader(fragment_shader);
+
+        glUseProgram(shader_program);
+    }
+
+    'main_loop: loop {
+        // handle events this frame
+        while let Some(event) = sdl.poll_events().and_then(Result::ok) {
+            match event {
+                Event::Quit(_) => break 'main_loop,
+                _ => (),
+            }
+        }
+        // now the events are clear.
+
+        // here's where we could change the world state if we had some.
+
+        // and then draw!
+        unsafe {
+            glClear(GL_COLOR_BUFFER_BIT);
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+        }
+        win.swap_window();
+    }
+
+    fn gen_space() -> Vec<u8> {
+        let perlin = Perlin::new();
+        let mut space: Vec<u8> = vec![0u8; SPACE_SIZE.pow(3) * 3];
+        for x in 0..SPACE_SIZE {
+            for y in 0..SPACE_SIZE {
+                let height = (perlin.get([
+                        (x as f64 - (SPACE_SIZE >> 1) as f64) / 10.0,
+                        (y as f64 - (SPACE_SIZE >> 1) as f64) / 10.0
+                    ]) *  10.0 + (SPACE_SIZE >> 1) as f64).floor() as usize;
+                for z in 0..height as usize {
+                    for (n, i) in [x, y, z].iter().enumerate() {
+                        space[make_coord([x, y, z, n])] = (*i as f32 / SPACE_SIZE as f32 * 255.0) as u8;
+                    }
+                }
+            }
+        }
+        space
+    }
+
+    fn make_coord(coord: [usize; 4]) -> usize {
+        coord[0] * SPACE_SIZE * SPACE_SIZE + coord[1] * SPACE_SIZE + coord[2] * 3 + coord[3]
     }
 }

@@ -8,6 +8,12 @@ edition = "2021"
 [dependencies]
 minifb = "0.20.0"
 noise = "0.7.0"
+beryllium = { version = "0.2.0-alpha.1", default-features = false, features = ["link_static"] }
+ogl33 = { version = "0.2.0", features = ["debug_error_checks"]}
+
+[dev-dependencies]
+beryllium = "0.2.0-alpha.4"
+imagine = "0.0.5"
 
 [[bin]]
 name = "cpu"
@@ -16,3 +22,4 @@ path = "src/cpu/main.rs"
 [[bin]]
 name = "gpu"
 path = "src/gpu/main.rs"
+
