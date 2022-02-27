@@ -62,7 +62,7 @@ fn main() {
         glTexImage3D(
             GL_TEXTURE_3D,
             0,
-            GL_RGB as GLint,
+            GL_RGB8 as GLint,
             SPACE_SIZE as GLsizei,
             SPACE_SIZE as GLsizei,
             SPACE_SIZE as GLsizei,
@@ -199,14 +199,14 @@ fn main() {
         let perlin = Perlin::new();
         let mut space: Vec<u8> = vec![0u8; SPACE_SIZE.pow(3) * 3];
         for x in 0..SPACE_SIZE {
-            for y in 0..SPACE_SIZE {
+            for z in 0..SPACE_SIZE {
                 let height = (perlin.get([
                         (x as f64 - (SPACE_SIZE >> 1) as f64) / 10.0,
-                        (y as f64 - (SPACE_SIZE >> 1) as f64) / 10.0
+                        (z as f64 - (SPACE_SIZE >> 1) as f64) / 10.0
                     ]) *  10.0 + (SPACE_SIZE >> 1) as f64).floor() as usize;
-                for z in 0..height as usize {
+                for y in 0..height as usize {
                     for (n, i) in [x, y, z].iter().enumerate() {
-                        space[make_coord([x, y, z, n])] = (*i as f32 / SPACE_SIZE as f32 * 255.0) as u8;
+                        space[make_coord(x, y, z, n)] = (*i as f32 / SPACE_SIZE as f32 * 255.0) as u8;
                     }
                 }
             }
@@ -214,7 +214,7 @@ fn main() {
         space
     }
 
-    fn make_coord(coord: [usize; 4]) -> usize {
-        coord[0] * SPACE_SIZE * SPACE_SIZE + coord[1] * SPACE_SIZE + coord[2] * 3 + coord[3]
+    fn make_coord(x: usize, y: usize, z: usize, n: usize) -> usize {
+        (x * SPACE_SIZE * SPACE_SIZE * 3) + (y * SPACE_SIZE * 3) + (z * 3) + n
     }
 }
