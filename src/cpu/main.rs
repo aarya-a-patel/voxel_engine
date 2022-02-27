@@ -3,7 +3,7 @@ use noise::{NoiseFn, Perlin};
 use std::time::{Instant, Duration};
 
 const WIDTH: usize = 1280;
-const HEIGHT: usize = 640;
+const HEIGHT: usize = 720;
 const SPACE_SIZE: u32 = 6;
 const MAX_DIST: i32 = (((1 << SPACE_SIZE - 1) - 1) as i32).pow(2);
 
@@ -78,7 +78,7 @@ fn gen_space() -> Vec<u32> {
     let half_space: i32 = (1i32 << (SPACE_SIZE - 1)) - 1;
     for x in -half_space..half_space {
         for y in -half_space..half_space {
-            let height = (perlin.get([x as f64 / 10.0, y as f64 / 10.0]) *  10.0).floor() as i32; 
+            let height = (perlin.get([x as f64 / 32.0, y as f64 / 32.0]) *  10.0).floor() as i32;
             for z in -half_space..height {
                 let mut color = 0x00000000;
                 for i in [x, y, z] {
@@ -97,10 +97,9 @@ fn main() {
 
     let mut window = match Window::new(
         "Voxel Render",
-        WIDTH / 4,
-        HEIGHT / 4,
+        WIDTH,
+        HEIGHT,
         WindowOptions {
-            scale: Scale::X2,
             resize: true,
             ..WindowOptions::default()
         },
@@ -116,11 +115,11 @@ fn main() {
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let (width, height) = window.get_size();
-        let buffer: Vec<u32> = gen_buffer(width / 2, height / 2, camera_angle, &space);
+        let buffer: Vec<u32> = gen_buffer(width, height, camera_angle, &space);
         camera_angle += 0.25;
 
         window
-            .update_with_buffer(&buffer, width / 2, height /2)
+            .update_with_buffer(&buffer, width, height)
             .unwrap();
     }
 }

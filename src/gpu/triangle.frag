@@ -9,7 +9,7 @@ ivec3 fixCoord(ivec3);
 
 void main()
 {
-    vec2 uv = gl_FragCoord.xy / vec2(800, 600);
+    vec2 uv = gl_FragCoord.xy / vec2(1280, 720);
     vec2 start_angle = vec2(M_PI / 3.0, M_PI / 4.0); // Replace with camera angle
     vec2 a = vec2(uv * M_PI / 2.0 + start_angle);
     vec3 pos = vec3(10.0, 0.0, 0.0);

@@ -43,8 +43,8 @@ fn main() {
         .create_gl_window(
             WINDOW_TITLE,
             WindowPosition::Centered,
-            800,
-            600,
+            1280,
+            720,
             WindowFlags::Shown,
         )
         .expect("couldn't make a window and context");
@@ -201,8 +201,8 @@ fn main() {
         for x in 0..SPACE_SIZE {
             for z in 0..SPACE_SIZE {
                 let height = (perlin.get([
-                        (x as f64 - (SPACE_SIZE >> 1) as f64) / 10.0,
-                        (z as f64 - (SPACE_SIZE >> 1) as f64) / 10.0
+                        (x as f64 - (SPACE_SIZE >> 1) as f64) / 32.0,
+                        (z as f64 - (SPACE_SIZE >> 1) as f64) / 32.0
                     ]) *  10.0 + (SPACE_SIZE >> 1) as f64).floor() as usize;
                 for y in 0..height as usize {
                     for (n, i) in [x, y, z].iter().enumerate() {
