@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 #![allow(clippy::zero_ptr)]
 
-const WINDOW_TITLE: &str = "Triangle: Draw Arrays";
+const WINDOW_TITLE: &str = "Voxel Engine";
 const SPACE_SIZE: usize = 128;
 
 use beryllium::*;
